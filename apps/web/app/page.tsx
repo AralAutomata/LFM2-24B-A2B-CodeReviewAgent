@@ -295,6 +295,26 @@ export default function Home() {
                       <span>{session.stats.totalFindings} findings</span>
                     </div>
                   </div>
+                  {session.status === 'completed' && (
+                    <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.5rem' }}>
+                      <a
+                        href={`${API}/api/review/${session.id}/download/json`}
+                        download
+                        className="btn btn-ghost"
+                        style={{ flex: 1, fontSize: '0.8125rem', padding: '0.5rem' }}
+                      >
+                        📥 JSON
+                      </a>
+                      <a
+                        href={`${API}/api/review/${session.id}/download/markdown`}
+                        download
+                        className="btn btn-ghost"
+                        style={{ flex: 1, fontSize: '0.8125rem', padding: '0.5rem' }}
+                      >
+                        📥 Markdown
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 <div className="card">

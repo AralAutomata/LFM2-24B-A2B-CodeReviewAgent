@@ -64,6 +64,18 @@ const server = serve({
       return handleGetResults(resultsMatch[1]);
     }
 
+    // Route: Download JSON
+    const jsonMatch = pathname.match(/^\/api\/review\/([^\/]+)\/download\/json$/);
+    if (jsonMatch && method === 'GET') {
+      return handleDownloadJSON(jsonMatch[1]);
+    }
+
+    // Route: Download Markdown
+    const mdMatch = pathname.match(/^\/api\/review\/([^\/]+)\/download\/markdown$/);
+    if (mdMatch && method === 'GET') {
+      return handleDownloadMarkdown(mdMatch[1]);
+    }
+
     // Route: SSE stream
     const streamMatch = pathname.match(/^\/api\/review\/([^\/]+)\/stream$/);
     if (streamMatch && method === 'GET') {
@@ -182,6 +194,95 @@ function handleGetResults(sessionId: string): Response {
     sessionId,
     status: session.status,
     results
+  });
+}
+
+// Download JSON handler
+function handleDownloadJSON(sessionId: string): Response {
+  const session = sessionManager.getSession(sessionId);
+  
+  if (!session) {
+    return jsonResponse({ error: 'Session not found' }, 404);
+  }
+
+  const results = getSessionResults(sessionId);
+  const stats = sessionManager.getSessionStats(sessionId);
+
+  const data = {
+    sessionId,
+    rootPath: session.rootPath,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+    stats,
+    results
+  };
+
+  return new Response(JSON.stringify(data, null, 2), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="code-review-${sessionId}.json"`
+    }
+  });
+}
+
+// Download Markdown handler
+function handleDownloadMarkdown(sessionId: string): Response {
+  const session = sessionManager.getSession(sessionId);
+  
+  if (!session) {
+    return jsonResponse({ error: 'Session not found' }, 404);
+  }
+
+  const results = getSessionResults(sessionId);
+  const stats = sessionManager.getSessionStats(sessionId);
+
+  let md = `# Code Review Report
+
+## Summary
+
+- **Session ID**: ${sessionId}
+- **Root Path**: ${session.rootPath}
+- **Started**: ${session.startedAt}
+- **Completed**: ${session.completedAt || 'N/A'}
+- **Total Files**: ${stats?.totalFiles || 0}
+- **Processed Files**: ${stats?.processedFiles || 0}
+- **Total Findings**: ${stats?.totalFindings || 0}
+- **Avg Score**: ${results.length ? Math.round(results.reduce((s, r) => s + r.score, 0) / results.length) : 0}
+
+---
+
+## Files Reviewed
+
+`;
+
+  for (const result of results) {
+    md += `### ${result.file} (${result.language})\n\n`;
+    md += `**Score**: ${result.score}/100\n\n`;
+    if (result.summary) {
+      md += `${result.summary}\n\n`;
+    }
+    if (result.findings.length > 0) {
+      md += `#### Findings (${result.findings.length})\n\n`;
+      for (const f of result.findings) {
+        const severityIcon = f.severity === 'critical' ? '🔴' : f.severity === 'high' ? '🟠' : f.severity === 'medium' ? '🟡' : f.severity === 'low' ? '🔵' : '⚪';
+        md += `##### ${severityIcon} ${f.severity.toUpperCase()}: ${f.title}\n\n`;
+        md += `- **Category**: ${f.category}\n`;
+        if (f.line > 0) md += `- **Line**: ${f.line}\n`;
+        md += `- **Description**: ${f.description}\n`;
+        if (f.suggestion) md += `- **Suggestion**: ${f.suggestion}\n`;
+        md += '\n';
+      }
+    } else {
+      md += `_No issues found_\n\n`;
+    }
+    md += '---\n\n';
+  }
+
+  return new Response(md, {
+    headers: {
+      'Content-Type': 'text/markdown',
+      'Content-Disposition': `attachment; filename="code-review-${sessionId}.md"`
+    }
   });
 }
 
