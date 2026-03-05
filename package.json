@@ -1,0 +1,13 @@
+{
+  "name": "code-review-assistant",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "dev:server": "bun run --filter server dev",
+    "dev:web": "bun run --filter web dev",
+    "build": "bun run --filter '*' build",
+    "start:server": "bun run --filter server start",
+    "start:web": "bun run --filter web start"
+  }
+}
