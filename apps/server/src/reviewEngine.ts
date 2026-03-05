@@ -63,7 +63,8 @@ export async function startReview(
       const reviewResponse = await reviewFile(
         fileInfo.relativePath,
         fileInfo.language,
-        content
+        content,
+        session.rootPath
       );
 
       // Create result

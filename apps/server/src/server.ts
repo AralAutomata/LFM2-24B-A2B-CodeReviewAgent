@@ -3,6 +3,7 @@ import { sessionManager } from './sessionManager';
 import { startReview, getSessionResults } from './reviewEngine';
 import { sseHandler, emitEvent, createEvent } from './sseHandler';
 import { checkOllamaConnection } from './ollamaClient';
+import { consolidateFindings, generateConsolidatedReport } from './findingConsolidator';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import type { ReviewEvent } from './types';
@@ -62,6 +63,12 @@ const server = serve({
     const resultsMatch = pathname.match(/^\/api\/review\/([^\/]+)\/results$/);
     if (resultsMatch && method === 'GET') {
       return handleGetResults(resultsMatch[1]);
+    }
+
+    // Route: Get consolidated results
+    const consolidatedMatch = pathname.match(/^\/api\/review\/([^\/]+)\/results\/consolidated$/);
+    if (consolidatedMatch && method === 'GET') {
+      return handleGetConsolidatedResults(consolidatedMatch[1]);
     }
 
     // Route: Download JSON
@@ -194,6 +201,30 @@ function handleGetResults(sessionId: string): Response {
     sessionId,
     status: session.status,
     results
+  });
+}
+
+// Get consolidated results handler
+function handleGetConsolidatedResults(sessionId: string): Response {
+  const session = sessionManager.getSession(sessionId);
+  
+  if (!session) {
+    return jsonResponse({ error: 'Session not found' }, 404);
+  }
+
+  const results = getSessionResults(sessionId);
+  const consolidated = consolidateFindings(results);
+
+  return jsonResponse({
+    sessionId,
+    status: session.status,
+    consolidatedFindings: consolidated,
+    summary: {
+      totalFiles: results.length,
+      totalFindings: results.reduce((sum, r) => sum + r.findings.length, 0),
+      uniqueIssues: consolidated.length,
+      avgScore: results.length ? Math.round(results.reduce((s, r) => s + r.score, 0) / results.length) : 0
+    }
   });
 }
 

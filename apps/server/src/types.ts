@@ -23,6 +23,24 @@ export interface Finding {
   title: string;
   description: string;
   suggestion: string;
+  confidence: number;
+  evidence: string;
+  verified: boolean;
+}
+
+export interface ExternalAnalysis {
+  eslint?: ExternalToolResult[];
+  typescript?: ExternalToolResult[];
+  security?: ExternalToolResult[];
+}
+
+export interface ExternalToolResult {
+  rule?: string;
+  code?: string;
+  vulnerability?: string;
+  message: string;
+  line: number;
+  severity: string;
 }
 
 export interface ReviewResult {
