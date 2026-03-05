@@ -359,7 +359,7 @@ Findings across all files are consolidated, with patterns identified when the sa
 
 ## License
 
-This project uses LFM2 models under Liquid AI's license terms. See [LFM License](https://www.liquid.ai/lfm-license) for details.
+MIT
 
 ---
 
