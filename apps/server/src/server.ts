@@ -2,7 +2,7 @@ import { serve, type ServerWebSocket } from 'bun';
 import { sessionManager } from './sessionManager';
 import { startReview, getSessionResults } from './reviewEngine';
 import { sseHandler, emitEvent, createEvent } from './sseHandler';
-import { checkOllamaConnection } from './ollamaClient';
+import { checkOllamaConnection, OLLAMA_MODEL } from './ollamaClient';
 import { consolidateFindings, generateConsolidatedReport } from './findingConsolidator';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
@@ -124,6 +124,7 @@ async function handleHealth(): Promise<Response> {
   return jsonResponse({
     status: 'ok',
     ollama: ollamaConnected ? 'connected' : 'disconnected',
+    model: OLLAMA_MODEL.replace(':latest', ''),
     timestamp: new Date().toISOString()
   });
 }

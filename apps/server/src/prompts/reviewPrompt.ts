@@ -370,8 +370,12 @@ IMPORTANT:
 - Provide clear verification notes`;
 
 export function createVerificationPrompt(code: string, findings: any[]): string {
+  const truncatedCode = code.length > 6000
+    ? code.substring(0, 6000) + '\n\n[Content truncated due to length...]'
+    : code;
+  
   return VERIFICATION_PROMPT
-    .replace('{code}', code.substring(0, 3000))
+    .replace('{code}', truncatedCode)
     .replace('{findings}', JSON.stringify(findings, null, 2));
 }
 

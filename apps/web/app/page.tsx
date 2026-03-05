@@ -33,6 +33,12 @@ interface Session {
   };
 }
 
+interface HealthStatus {
+  ollama: string;
+  model: string;
+  status: string;
+}
+
 const SEVERITY_CLASS: Record<string, string> = {
   critical: 'badge-critical',
   high: 'badge-high',
@@ -81,6 +87,7 @@ export default function Home() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [connected, setConnected] = useState(false);
+  const [modelName, setModelName] = useState('');
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<number | null>(null);
 
@@ -102,7 +109,10 @@ export default function Home() {
   useEffect(() => {
     fetch(`${API}/health`)
       .then(r => r.json())
-      .then(d => setHealth(d.ollama))
+      .then((d: HealthStatus) => {
+        setHealth(d.ollama);
+        setModelName(d.model || '');
+      })
       .catch(() => setHealth('disconnected'));
   }, []);
 
@@ -207,7 +217,8 @@ export default function Home() {
     return allFindings.filter(f => {
       if (severityFilter && f.severity !== severityFilter) return false;
       if (categoryFilter && f.category !== categoryFilter) return false;
-      if (search && !f.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !f.title.toLowerCase().includes(search.toLowerCase()) &&
+          !f.description.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
   };
@@ -225,9 +236,20 @@ export default function Home() {
             <div className="logo-icon">⚡</div>
             <span>Code Review</span>
           </div>
-          <div className="status-indicator">
-            <span className={`status-dot ${health === 'connected' ? 'connected' : 'disconnected'}`}></span>
-            <span>Ollama: {health}</span>
+          <div className="header-right">
+            <div className="status-indicator">
+              <span className={`status-dot ${health === 'connected' ? 'connected' : 'disconnected'}`}></span>
+              <span className="status-text">
+                {health === 'connected' ? (
+                  <>
+                    {modelName && <span className="model-badge">{modelName.replace(':latest', '')}</span>}
+                    {session?.status === 'running' && <span className="running-indicator">Running</span>}
+                  </>
+                ) : (
+                  'Ollama: disconnected'
+                )}
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -236,6 +258,7 @@ export default function Home() {
         <div className="container">
           {!session ? (
             <div className="landing">
+              <div className="powered-by">Powered With LFM2-24B-A2B Model by Liquid AI</div>
               <h1>AI-Powered Code Review</h1>
               <p>Enter a local codebase path to analyze your code with AI. Get instant feedback on bugs, security, performance, and more.</p>
               
@@ -361,13 +384,16 @@ export default function Home() {
                 )}
 
                 <div className="filter-bar">
-                  <input
-                    type="text"
-                    className="filter-input"
-                    placeholder="Search findings..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                  />
+                  <div className="filter-input-wrapper">
+                    <span className="search-icon">🔍</span>
+                    <input
+                      type="text"
+                      className="filter-input"
+                      placeholder="Search findings..."
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                    />
+                  </div>
                   <select className="filter-select" value={severityFilter} onChange={e => setSeverityFilter(e.target.value)}>
                     <option value="">All Severities</option>
                     <option value="critical">Critical</option>

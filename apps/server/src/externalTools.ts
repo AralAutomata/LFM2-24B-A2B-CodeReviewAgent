@@ -16,14 +16,13 @@ export async function analyzeWithExternalTools(
 
   try {
     if (ext === 'ts' || ext === 'tsx' || ext === 'js' || ext === 'jsx') {
-      const tsResults = await runTypeScriptCheck(filePath, rootPath);
+      const [tsResults, eslintResults] = await Promise.all([
+        runTypeScriptCheck(filePath, rootPath),
+        runESLint(filePath, rootPath)
+      ]);
       if (tsResults.length > 0) {
         results.typescript = tsResults;
       }
-    }
-
-    if (ext === 'ts' || ext === 'tsx' || ext === 'js' || ext === 'jsx') {
-      const eslintResults = await runESLint(filePath, rootPath);
       if (eslintResults.length > 0) {
         results.eslint = eslintResults;
       }
@@ -42,6 +41,13 @@ async function runTypeScriptCheck(
   rootPath: string
 ): Promise<ExternalToolResult[]> {
   const results: ExternalToolResult[] = [];
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  
+  if (ext !== 'ts' && ext !== 'tsx' && ext !== 'js' && ext !== 'jsx') {
+    return results;
+  }
+
+  const normalizedTargetFile = relative(rootPath, filePath).replace(/\\/g, '/');
   
   try {
     const { stdout, stderr } = await execAsync(
@@ -57,16 +63,16 @@ async function runTypeScriptCheck(
     const lines = output.split('\n');
     
     for (const line of lines) {
-      const match = line.match(/(\d+),(\d+):\s*error\s*(TS\d+):\s*(.+)/);
+      const match = line.match(/^(.+?)\((\d+),(\d+)\):\s*error\s*(TS\d+):\s*(.+)/);
       if (match) {
-        const [, lineNum, , code, message] = match;
-        const fileInError = line.match(/\((\d+),(\d+)\):\s*error/);
+        const [, errorFile, , , code, message] = match;
+        const normalizedErrorFile = relative(rootPath, errorFile).replace(/\\/g, '/');
         
-        if (fileInError) {
+        if (normalizedErrorFile === normalizedTargetFile) {
           results.push({
             code: code,
             message: message,
-            line: parseInt(fileInError[1], 10),
+            line: parseInt(match[2], 10),
             severity: 'high'
           });
         }
@@ -76,16 +82,16 @@ async function runTypeScriptCheck(
     if (error.stdout) {
       const lines = error.stdout.toString().split('\n');
       for (const line of lines) {
-        const match = line.match(/(\d+),(\d+):\s*error\s*(TS\d+):\s*(.+)/);
+        const match = line.match(/^(.+?)\((\d+),(\d+)\):\s*error\s*(TS\d+):\s*(.+)/);
         if (match) {
-          const [, , , code, message] = match;
-          const fileInError = line.match(/\((\d+),(\d+)\)/);
+          const [, errorFile, , , code, message] = match;
+          const normalizedErrorFile = relative(rootPath, errorFile).replace(/\\/g, '/');
           
-          if (fileInError) {
+          if (normalizedErrorFile === normalizedTargetFile) {
             results.push({
               code: code,
               message: message,
-              line: parseInt(fileInError[1], 10),
+              line: parseInt(match[2], 10),
               severity: 'high'
             });
           }
@@ -168,7 +174,7 @@ async function runSecurityAudit(
   }
 
   try {
-    const content = readFileSync(join(filePath), 'utf-8');
+    const content = readFileSync(join(rootPath, filePath), 'utf-8');
     
     const dangerousPatterns = [
       { pattern: /eval\s*\(/, vulnerability: 'Code injection via eval()', severity: 'critical' },
@@ -229,7 +235,6 @@ export function validateFindingWithCode(
 
   if (finding.evidence && !actualLine.includes(finding.evidence.trim())) {
     const searchWindow = 3;
-    let found = false;
     const startLine = Math.max(0, finding.line - searchWindow - 1);
     const endLine = Math.min(lines.length, finding.line + searchWindow);
     

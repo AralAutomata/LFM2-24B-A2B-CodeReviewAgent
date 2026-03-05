@@ -3,11 +3,10 @@ import { REVIEW_SYSTEM_PROMPT, createReviewPrompt, parseReviewResponse, createVe
 import { analyzeWithExternalTools, validateFindingWithCode } from './externalTools';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'lfm2:latest';
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'lfm2:latest';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 const ENABLE_VERIFICATION = true;
-const CONFIDENCE_THRESHOLD = 0.5;
 const ENABLE_EVIDENCE_VALIDATION = false;
 
 interface ReviewResponse {
@@ -55,7 +54,7 @@ export async function reviewFile(
           title: String(f.title || 'Untitled Finding'),
           description: String(f.description || 'No description provided'),
           suggestion: String(f.suggestion || 'No suggestion provided'),
-          confidence: typeof f.confidence === 'number' ? Math.max(0, Math.min(1, f.confidence)) : CONFIDENCE_THRESHOLD,
+          confidence: typeof f.confidence === 'number' ? Math.max(0, Math.min(1, f.confidence)) : 0.85,
           evidence: String(f.evidence || ''),
           verified: false
         }));
@@ -65,11 +64,6 @@ export async function reviewFile(
       }
 
       const validatedFindings = findings.filter(f => {
-        if (f.confidence < CONFIDENCE_THRESHOLD) {
-          console.warn(`Filtered out "${f.title}" due to low confidence: ${f.confidence}`);
-          return false;
-        }
-        
         if (ENABLE_EVIDENCE_VALIDATION) {
           const validation = validateFindingWithCode(f, content);
           if (!validation.valid) {
@@ -192,9 +186,7 @@ function parseVerificationResponse(
       }
     }
   } catch {
-    for (const f of originalFindings) {
-      verifiedIds.add(f.id);
-    }
+    console.warn('Failed to parse verification response, keeping findings unverified');
   }
 
   return { verifiedIds, corrections };
