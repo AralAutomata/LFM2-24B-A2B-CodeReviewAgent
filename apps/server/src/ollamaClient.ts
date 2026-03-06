@@ -192,7 +192,7 @@ function parseVerificationResponse(
   return { verifiedIds, corrections };
 }
 
-async function callOllama(messages: OllamaMessage[]): Promise<string> {
+export async function callOllama(messages: OllamaMessage[]): Promise<string> {
   const url = `${OLLAMA_BASE_URL}/v1/chat/completions`;
 
   const body = {

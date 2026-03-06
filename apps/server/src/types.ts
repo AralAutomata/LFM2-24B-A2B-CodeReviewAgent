@@ -1,19 +1,23 @@
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-export type Category = 
-  | 'bug' 
-  | 'security' 
-  | 'style' 
-  | 'performance' 
-  | 'test_coverage' 
-  | 'dead_code' 
-  | 'type_safety' 
-  | 'documentation' 
-  | 'complexity' 
-  | 'dependency' 
+export type Category =
+  | 'bug'
+  | 'security'
+  | 'style'
+  | 'performance'
+  | 'test_coverage'
+  | 'dead_code'
+  | 'type_safety'
+  | 'documentation'
+  | 'complexity'
+  | 'dependency'
   | 'error_handling';
 
+export type AgentMode = 'review' | 'commit_explainer';
+
 export type SessionStatus = 'pending' | 'running' | 'completed' | 'error';
+
+export type CommitFileStatus = 'added' | 'modified';
 
 export interface Finding {
   id: string;
@@ -51,6 +55,49 @@ export interface ReviewResult {
   findings: Finding[];
 }
 
+export interface DiffStats {
+  additions: number;
+  deletions: number;
+}
+
+export interface CommitMetadata {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  title: string;
+  body: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface CommitFileExplanation {
+  file: string;
+  status: CommitFileStatus;
+  language: string;
+  diffStats: DiffStats;
+  summary: string;
+  changeTypes: string[];
+  details: string[];
+  skipped?: boolean;
+  skippedReason?: string;
+}
+
+export interface CommitSummary {
+  headline: string;
+  overview: string;
+  themes: string[];
+  risks: string[];
+  notableFiles: string[];
+}
+
+export interface CommitExplanationResult {
+  commit: CommitMetadata;
+  summary: CommitSummary | null;
+  files: CommitFileExplanation[];
+}
+
 export interface ReviewEvent {
   type: 'started' | 'file_start' | 'file_complete' | 'error' | 'completed' | 'progress';
   timestamp: string;
@@ -59,12 +106,14 @@ export interface ReviewEvent {
 
 export interface ReviewSession {
   id: string;
+  mode: AgentMode;
   rootPath: string;
   status: SessionStatus;
   startedAt: string;
   completedAt?: string;
   files: string[];
   results: Map<string, ReviewResult>;
+  commitResult?: CommitExplanationResult;
   events: ReviewEvent[];
   errors: Array<{ file: string; error: string }>;
   totalFiles: number;

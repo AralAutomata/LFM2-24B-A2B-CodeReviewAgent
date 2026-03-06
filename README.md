@@ -1,14 +1,19 @@
-# AI Code Review Agent
+# AI Code Review & Commit Explanation Agent
 
 <p align="center">
   <strong>Powered With LFM2-24B-A2B Model by Liquid AI</strong>
 </p>
 
 <p align="center">
-  <img src="lfmagent01.png" alt="Code Review Agent Screenshot 1" width="80%">
+  <img src="lfmagentmain.png" alt="AI Code Analysis Screenshot 1" width="80%">
 </p>
 
-An intelligent, local-first code review system powered by Liquid Foundation Models (LFM2). This agent analyzes your codebase for bugs, security vulnerabilities, performance issues, and best practices violations while keeping all processing on your machine.
+An intelligent, local-first code analysis system powered by Liquid Foundation Models (LFM2). The app offers two focused agents in one web UI:
+
+- **Code Review Agent** for bug, security, performance, and maintainability analysis
+- **Commit Explanation Agent** for explaining the latest Git commit from its diff, both at whole-commit scale and per-file scale
+
+All analysis runs locally through Ollama so your source code and Git history stay on your machine.
 
 ---
 
@@ -17,67 +22,57 @@ An intelligent, local-first code review system powered by Liquid Foundation Mode
 - [Features](#features)
 - [About LFM2-24B-A2B](#about-lfm2-24b-a2b)
 - [Architecture](#architecture)
+- [Code Review Agent](#code-review-agent)
+- [Commit Explanation Agent](#commit-explanation-agent)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Screenshots](#screenshots)
+- [License](#license)
 
 ---
 
 ## Features
 
-- **Local-First Privacy**: All code analysis runs locally through Ollama - your code never leaves your machine
-- **Multi-Language Support**: Reviews TypeScript, JavaScript, Python, Go, Rust, Java, C#, PHP, and more
-- **Comprehensive Analysis**:
+- **Local-First Privacy**: All analysis runs locally through Ollama.
+- **Dual Agent Modes**: Switch between Code Review Agent and Commit Explanation Agent from the same UI.
+- **Code Review Analysis**:
   - Bug detection and logic errors
   - Security vulnerability scanning
   - Performance issue identification
-  - Code style and maintainability
-  - Type safety checks
-  - Error handling patterns
-- **External Tool Integration**: Combines LLM analysis with ESLint, TypeScript compiler, and custom security audits
-- **Real-Time Progress**: SSE-powered live updates during review sessions
-- **Confidence Scoring**: Each finding includes a confidence score to reduce false positives
-- **Verification Pass**: Findings are verified by a second LLM pass for accuracy
-- **Export Options**: Download results as JSON or Markdown reports
+  - Code style and maintainability feedback
+  - Type safety and error handling checks
+- **Commit Explanation Analysis**:
+  - Whole-commit "what changed" explanations
+  - Detailed per-file explanations for added and modified files
+  - Lightweight Git diff analysis using the same `lfm2:latest` model
+- **Real-Time Progress**: SSE-powered progress updates with polling fallback.
+- **Export Options**: Download JSON or Markdown reports for both agents.
 
 ---
 
 ## About LFM2-24B-A2B
 
-This code review agent is powered by **LFM2-24B-A2B**, part of Liquid AI's second generation of Liquid Foundation Models.
+This project uses **LFM2-24B-A2B**, part of Liquid AI's second generation of Liquid Foundation Models.
 
 ### What Makes LFM2 Special
 
-Liquid Foundation Models represent a new class of generative AI models built from first principles, drawing from:
+Liquid Foundation Models are built from first principles and draw from:
 
-- **Dynamical Systems Theory**: LFM2's architecture is rooted in the theory of liquid time-constant networks, enabling adaptive computation
-- **Signal Processing**: The models use structured operators derived from decades of signal processing advances
-- **Hybrid Architecture**: LFM2 combines multiplicative gates, short convolutions, and grouped query attention in an optimized blend
+- **Dynamical Systems Theory**: rooted in liquid time-constant network ideas
+- **Signal Processing**: structured operators informed by decades of signal processing work
+- **Hybrid Architecture**: grouped query attention combined with short convolution blocks
 
 ### Key Advantages
 
 | Feature | Benefit |
 |---------|---------|
-| **3x Faster Training** | New hybrid architecture accelerates both training and inference |
-| **Memory Efficient** | Optimized for resource-constrained environments with near-constant memory complexity |
-| **State-of-the-Art Quality** | Outperforms similar-sized models on benchmarks |
-| **32K Context Length** | Extended context for analyzing large files and documentation |
-| **Deploy Anywhere** | Runs on CPU, GPU, and NPU hardware - perfect for local deployment |
-
-### Technical Architecture
-
-LFM2 uses a hybrid of convolution and attention blocks:
-- **16 total blocks**: 10 double-gated short-range LIV convolutions + 6 grouped query attention (GQA) blocks
-- **SwiGLU activation** with RMSNorm layers
-- **Linear Input-Varying (LIV) operators** for adaptive, input-aware computation
-
-This architecture makes LFM2 particularly well-suited for code analysis tasks requiring:
-- Long context understanding
-- Precise pattern recognition
-- Structured output generation
+| **Fast Inference** | Fits the repo's local-first workflow and interactive UI |
+| **Memory Efficient** | Works well for lightweight sequential analysis |
+| **Strong Long-Context Handling** | Useful for code review and diff explanation |
+| **Deploy Anywhere** | Runs locally through Ollama on supported hardware |
 
 Learn more at [Liquid AI](https://www.liquid.ai/) and [LFM Documentation](https://docs.liquid.ai/).
 
@@ -87,63 +82,220 @@ Learn more at [Liquid AI](https://www.liquid.ai/) and [LFM Documentation](https:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Web Frontend (Next.js)                   │
-│                      Port: 3002                              │
+│                     Web Frontend (Next.js)                  │
+│        Mode selector + review dashboard + commit UI         │
+│                         Port: 3002                          │
 └─────────────────────────┬───────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Backend Server (Bun)                      │
-│                      Port: 3001                              │
+│                    Backend Server (Bun)                     │
+│                         Port: 3001                          │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│  │  Session    │  │   Review     │  │  Finding         │   │
-│  │  Manager    │  │   Engine     │  │  Consolidator    │   │
+│  │  Session    │  │ Review       │  │ Commit           │   │
+│  │  Manager    │  │ Engine       │  │ Explainer        │   │
 │  └─────────────┘  └──────────────┘  └──────────────────┘   │
 └─────────────────────────┬───────────────────────────────────┘
                           │
-          ┌───────────────┼───────────────┐
-          ▼               ▼               ▼
-    ┌──────────┐   ┌──────────┐   ┌──────────────┐
-    │  Ollama  │   │  ESLint  │   │  TypeScript  │
-    │  (LFM2)  │   │          │   │  Compiler    │
-    └──────────┘   └──────────┘   └──────────────┘
+          ┌───────────────┼───────────────┬────────────────┐
+          ▼               ▼               ▼                ▼
+    ┌──────────┐   ┌──────────┐   ┌──────────────┐   ┌──────────┐
+    │  Ollama  │   │  ESLint  │   │ TypeScript   │   │   Git    │
+    │  (LFM2)  │   │          │   │ Compiler     │   │ Diff/HEAD│
+    └──────────┘   └──────────┘   └──────────────┘   └──────────┘
 ```
 
 ### Project Structure
 
-```
+```text
 LFM2E2Ev04/
 ├── apps/
-│   ├── server/           # Bun backend server
+│   ├── server/
 │   │   └── src/
-│   │       ├── server.ts           # Main server entry
-│   │       ├── ollamaClient.ts     # LLM integration
-│   │       ├── reviewEngine.ts     # Review orchestration
-│   │       ├── externalTools.ts    # ESLint, TSC, security audits
-│   │       ├── findingConsolidator.ts
+│   │       ├── server.ts
+│   │       ├── reviewEngine.ts
+│   │       ├── commitExplainer.ts
+│   │       ├── gitCommitReader.ts
+│   │       ├── ollamaClient.ts
 │   │       └── prompts/
-│   │           └── reviewPrompt.ts # LLM prompts
-│   │
-│   └── web/              # Next.js frontend
+│   │           ├── reviewPrompt.ts
+│   │           └── commitExplainPrompt.ts
+│   └── web/
 │       └── app/
-│           ├── page.tsx           # Main UI
+│           ├── page.tsx
 │           ├── layout.tsx
 │           └── globals.css
-│
-├── lfmagent01.png        # Screenshots
+├── lfmagent01.png
 ├── lfmagent02.png
 ├── lfmagent03.png
 ├── lfmagent04.png
-└── package.json          # Workspace root
+└── package.json
 ```
+
+### Analysis Flow
+
+**Code Review Agent**
+
+1. Walks the target directory and filters supported source files.
+2. Runs review prompts against Ollama.
+3. Optionally augments review context with external tooling for supported JS/TS files.
+4. Streams progress and returns findings plus exports.
+
+**Commit Explanation Agent**
+
+1. Validates the target path is a Git repository.
+2. Reads the latest commit only: `HEAD`.
+3. Collects only `added` and `modified` files from that commit.
+4. Explains each eligible file sequentially from its unified diff.
+5. Builds one whole-commit summary from compact per-file summaries.
+6. Streams progress and returns JSON/Markdown exports.
+
+---
+
+## Code Review Agent
+
+The **Code Review Agent** is built for issue-focused analysis of a local codebase. It examines source files and returns structured findings about correctness, security, performance, and maintainability.
+
+### What It Does
+
+It analyzes supported files in a target project and produces:
+
+- a **per-file review summary**
+- a **score** for each reviewed file
+- structured **findings** with severity, category, description, and suggestion
+- downloadable **JSON** and **Markdown** reports
+
+This is useful when you want to:
+
+- scan a project for likely bugs and unsafe patterns
+- find maintainability and type-safety issues quickly
+- review a repository before shipping or opening a pull request
+- get an AI-assisted pass over multiple files without sending code to a hosted service
+
+### When To Use It vs Commit Explanation
+
+Use **Code Review Agent** when you want to answer:
+
+- What is risky or incorrect in this codebase?
+- Which files contain actionable findings?
+- Are there security, performance, or maintainability issues?
+
+Use **Commit Explanation Agent** when you want to answer:
+
+- What changed in the latest commit?
+- How should I understand the scope of one recent change?
+- Which modified files were touched and what changed in each one?
+
+### How It Works
+
+The review flow uses the same Ollama-backed `lfm2:latest` model and adds lightweight tool-assisted context when appropriate:
+
+- walks the provided directory and filters supported source files
+- reviews files individually through the model
+- augments supported JS/TS files with TypeScript, ESLint, and security-audit context when available
+- emits live progress updates and stores file-by-file results in memory for UI display and exports
+
+### Current Limits / Notes
+
+The current implementation is intentionally lightweight and favors predictable local execution:
+
+- **Project path input**: the target path should point to a local codebase directory
+- **Supported-file filtering**: excluded directories and unsupported extensions are skipped
+- **Large files are skipped**: very large files are not sent to the model
+- **Sequential processing**: files are processed one at a time to keep resource use stable
+- **External tools are best-effort**: missing ESLint or TypeScript configuration does not stop the full run
+
+## Screenshots of Code Review Agent
+
+<p align="center">
+  <img src="lfmagent02.png" alt="AI Code Analysis Screenshot 2" width="80%">
+</p>
+
+<p align="center">
+  <img src="lfmagent03.png" alt="AI Code Analysis Screenshot 3" width="80%">
+</p>
+
+<p align="center">
+  <img src="lfmagent04.png" alt="AI Code Analysis Screenshot 4" width="80%">
+</p>
+
+---
+
+## Commit Explanation Agent
+
+The **Commit Explanation Agent** is designed for understanding what the latest commit changed without switching to a manual `git show` workflow.
+
+### What It Does
+
+It reads the latest commit diff and produces:
+
+- a **whole-commit summary** describing the overall intent and visible changes
+- a **per-file explanation** for each added or modified file
+- downloadable **JSON** and **Markdown** reports
+
+This is useful when you want to:
+
+- understand a teammate's most recent commit quickly
+- review a commit's scope before deeper code review
+- generate a change summary without writing it by hand
+- inspect documentation, configuration, UI, or implementation changes from one place
+
+### When To Use It vs Code Review
+
+Use **Commit Explanation Agent** when you want to answer:
+
+- What changed in the latest commit?
+- Which files were touched and why?
+- What is the high-level story of this change?
+
+Use **Code Review Agent** when you want to answer:
+
+- Is this code risky or incorrect?
+- Are there security, performance, or maintainability issues?
+- Which files contain actionable findings?
+
+### How It Works
+
+The feature uses the same Ollama-backed `lfm2:latest` model as the review agent, but follows a lighter path:
+
+- reads Git metadata and unified diff output from `HEAD`
+- includes only `added` and `modified` files
+- explains files sequentially to keep memory and token usage predictable
+- generates the whole-commit summary from compact file summaries instead of re-sending the full diff
+
+### Current Limits / Notes
+
+The current implementation intentionally stays lightweight and only documents shipped behavior:
+
+- **Latest commit only**: it always explains `HEAD`
+- **Git repository required**: the provided path must be inside a valid Git worktree
+- **Added/modified files only**: deleted and rename-only paths are not explained in v1
+- **Binary diffs are skipped**: the report will note when a file could not be explained textually
+- **Large diffs may be truncated**: oversized per-file diffs are shortened before being sent to the model
+- **Sequential processing by design**: this keeps resource usage lower than a broad parallel analysis pass
+
+## Screenshots of Commit Explanation Agent
+
+<p align="center">
+  <img src="lfmcommit01.png" alt="AI Code Analysis Screenshot 2" width="80%">
+</p>
+
+<p align="center">
+  <img src="lfmcommit02.png" alt="AI Code Analysis Screenshot 3" width="80%">
+</p>
+
+<p align="center">
+  <img src="lfmcommit03.png" alt="AI Code Analysis Screenshot 4" width="80%">
+</p>
 
 ---
 
 ## Prerequisites
 
 - **[Bun](https://bun.sh/)** >= 1.0.0
-- **[Ollama](https://ollama.ai/)** with LFM2 model
-- **Node.js** >= 18 (for Next.js)
+- **[Ollama](https://ollama.ai/)** with an LFM2 model available locally
+- **Node.js** >= 18 for the Next.js frontend
+- **Git** available on your system path for the Commit Explanation Agent
 
 ### Installing Ollama and LFM2
 
@@ -153,7 +305,7 @@ LFM2E2Ev04/
    curl -fsSL https://ollama.ai/install.sh | sh
    ```
 
-2. Pull the LFM2 model:
+2. Pull the model:
    ```bash
    ollama pull lfm2:24b
    ```
@@ -178,7 +330,7 @@ LFM2E2Ev04/
    bun install
    ```
 
-3. Build the project:
+3. Build the workspace:
    ```bash
    bun run build
    ```
@@ -189,7 +341,7 @@ LFM2E2Ev04/
 
 ### Development Mode
 
-Run both frontend and backend in development:
+Run both frontend and backend:
 
 ```bash
 bun run dev
@@ -208,12 +360,13 @@ bun run dev:web
 ### Production Mode
 
 ```bash
-# Build
 bun run build
 
-# Start servers
-bun run start:server  # Backend on port 3001
-bun run start:web     # Frontend on port 3002
+# Backend on port 3001
+bun run start:server
+
+# Frontend on port 3002
+bun run start:web
 ```
 
 ### Accessing the Application
@@ -222,19 +375,61 @@ bun run start:web     # Frontend on port 3002
 - **Backend API**: http://localhost:3001
 - **Health Check**: http://localhost:3001/health
 
+### Using the Code Review Agent
+
+1. Open the web UI at `http://localhost:3002`
+2. Select **Code Review Agent**
+3. Enter a local project path
+4. Start the review
+5. Watch file-by-file progress, inspect findings, and download JSON or Markdown output
+
+### Using the Commit Explanation Agent
+
+1. Open the web UI at `http://localhost:3002`
+2. Select **Commit Explanation Agent**
+3. Enter the path to a local Git repository
+4. Click **Explain Latest Commit**
+5. The UI will:
+   - validate the repository
+   - read the latest commit from `HEAD`
+   - explain each added/modified file
+   - generate one whole-commit summary
+6. Review the results:
+   - whole-commit explanation at the top
+   - commit metadata in the sidebar
+   - per-file explanations in the changed-files list
+7. Download the session as JSON or Markdown once the run completes
+
+### Commit Explanation Output
+
+Each successful commit explanation session includes:
+
+- **Commit metadata**: short hash, author, date, title, insertion/deletion totals
+- **Whole-commit summary**:
+  - headline
+  - overview
+  - themes
+  - optional risks or follow-up notes
+- **Per-file explanations**:
+  - file path
+  - status (`added` or `modified`)
+  - language
+  - diff stats
+  - short summary
+  - change types
+  - detailed explanation bullets
+
 ---
 
 ## Configuration
 
-### Environment Variables
-
-Create a `.env` file in the project root or set these variables:
+Create a `.env` file in the project root or set these variables directly:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3001` | Backend server port |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `OLLAMA_MODEL` | `lfm2:latest` | Model to use for reviews |
+| `OLLAMA_MODEL` | `lfm2:latest` | Model used by both agents |
 
 ### Example `.env`
 
@@ -248,7 +443,9 @@ OLLAMA_MODEL=lfm2:24b
 
 ## API Reference
 
-### Start Review
+### Code Review Agent
+
+#### Start Review
 
 ```http
 POST /api/review/start
@@ -259,113 +456,70 @@ Content-Type: application/json
 }
 ```
 
-Response:
-```json
-{
-  "sessionId": "abc123",
-  "path": "/path/to/your/project",
-  "status": "started"
-}
-```
-
-### Get Session Status
+#### Session and Results
 
 ```http
 GET /api/review/:sessionId
-```
-
-### Get Results
-
-```http
 GET /api/review/:sessionId/results
-```
-
-### Get Consolidated Results
-
-```http
 GET /api/review/:sessionId/results/consolidated
-```
-
-### Stream Events (SSE)
-
-```http
 GET /api/review/:sessionId/stream
-```
-
-Event types:
-- `started` - Review started
-- `file_start` - Beginning to review a file
-- `file_complete` - File review finished
-- `progress` - Progress update
-- `completed` - All files reviewed
-- `error` - Error occurred
-
-### Download Reports
-
-```http
 GET /api/review/:sessionId/download/json
 GET /api/review/:sessionId/download/markdown
 ```
 
----
+Event types:
 
-## Screenshots
+- `started`
+- `file_start`
+- `file_complete`
+- `progress`
+- `completed`
+- `error`
 
-<p align="center">
-  <img src="lfmagent02.png" alt="Code Review Agent Screenshot 2" width="80%">
-</p>
+### Commit Explanation Agent
 
-<p align="center">
-  <img src="lfmagent03.png" alt="Code Review Agent Screenshot 3" width="80%">
-</p>
+#### Start Commit Explanation
 
-<p align="center">
-  <img src="lfmagent04.png" alt="Code Review Agent Screenshot 4" width="80%">
-</p>
+```http
+POST /api/commit-explainer/start
+Content-Type: application/json
 
----
+{
+  "path": "/path/to/your/git-repo"
+}
+```
 
-## How It Works
+#### Get Commit Session Status
 
-### 1. Code Discovery
-The engine walks your project directory, identifying source files by extension and filtering out common exclusions (node_modules, .git, etc.).
+```http
+GET /api/commit-explainer/:sessionId
+```
 
-### 2. External Analysis
-For supported file types, external tools are run:
-- **TypeScript/JavaScript**: ESLint linting and TypeScript type checking
-- **Security Audit**: Pattern matching for common vulnerabilities (SQL injection, XSS, hardcoded credentials, etc.)
+#### Get Commit Explanation Results
 
-### 3. LLM Review
-Each file is analyzed by LFM2 with:
-- Language-specific prompts for targeted analysis
-- Context from external tools
-- Confidence scoring for each finding
+```http
+GET /api/commit-explainer/:sessionId/results
+```
 
-### 4. Verification Pass
-High-confidence findings undergo a second verification pass to reduce false positives and correct line numbers.
+#### Stream Events and Downloads
 
-### 5. Consolidation
-Findings across all files are consolidated, with patterns identified when the same issue appears in multiple files.
+```http
+GET /api/commit-explainer/:sessionId/stream
+GET /api/commit-explainer/:sessionId/download/json
+GET /api/commit-explainer/:sessionId/download/markdown
+```
 
----
+The commit explainer uses the same event types as the review flow:
 
-## Technology Stack
-
-- **Server**: Bun, TypeScript, SSE (Server-Sent Events)
-- **Web**: Next.js 14, React, TypeScript, Tailwind CSS
-- **AI**: Ollama with LFM2 model (OpenAI-compatible API)
+- `started`
+- `file_start`
+- `file_complete`
+- `progress`
+- `completed`
+- `error`
 
 ---
 
 ## License
 
-MIT
-
----
-
-## Acknowledgments
-
-- **[Liquid AI](https://www.liquid.ai/)** for the LFM2-24B-A2B model
-- **[Ollama](https://ollama.ai/)** for local LLM serving
-- **[Bun](https://bun.sh/)** for the fast JavaScript runtime
-- **[Next.js](https://nextjs.org/)** for the frontend framework
+This project is licensed under the **MIT License**.

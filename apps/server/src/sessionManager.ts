@@ -1,12 +1,23 @@
-import type { ReviewSession, ReviewResult, ReviewEvent, SessionStatus } from './types';
+import type {
+  AgentMode,
+  CommitExplanationResult,
+  CommitFileExplanation,
+  CommitMetadata,
+  CommitSummary,
+  ReviewResult,
+  ReviewEvent,
+  ReviewSession,
+  SessionStatus
+} from './types';
 
 class SessionManager {
   private sessions: Map<string, ReviewSession> = new Map();
 
-  createSession(rootPath: string): ReviewSession {
+  createSession(rootPath: string, mode: AgentMode = 'review'): ReviewSession {
     const id = generateSessionId();
     const session: ReviewSession = {
       id,
+      mode,
       rootPath,
       status: 'pending',
       startedAt: new Date().toISOString(),
@@ -50,11 +61,51 @@ class SessionManager {
     }
   }
 
+  initializeCommitResult(id: string, commit: CommitMetadata): void {
+    const session = this.sessions.get(id);
+    if (!session) return;
+
+    session.commitResult = {
+      commit,
+      summary: null,
+      files: []
+    };
+  }
+
+  addCommitFileExplanation(id: string, fileExplanation: CommitFileExplanation): void {
+    const session = this.sessions.get(id);
+    if (!session) return;
+
+    if (!session.commitResult) {
+      throw new Error(`Commit result not initialized for session ${id}`);
+    }
+
+    session.commitResult.files.push(fileExplanation);
+    session.processedFiles++;
+  }
+
+  setCommitSummary(id: string, summary: CommitSummary | null): void {
+    const session = this.sessions.get(id);
+    if (session?.commitResult) {
+      session.commitResult.summary = summary;
+    }
+  }
+
+  getCommitResult(id: string): CommitExplanationResult | null {
+    return this.sessions.get(id)?.commitResult || null;
+  }
+
   addError(id: string, filePath: string, error: string): void {
+    this.recordError(id, filePath, error);
+  }
+
+  recordError(id: string, filePath: string, error: string, incrementProcessed: boolean = true): void {
     const session = this.sessions.get(id);
     if (session) {
       session.errors.push({ file: filePath, error });
-      session.processedFiles++;
+      if (incrementProcessed) {
+        session.processedFiles++;
+      }
     }
   }
 
@@ -105,8 +156,8 @@ class SessionManager {
     return {
       totalFiles: session.totalFiles,
       processedFiles: session.processedFiles,
-      progress: session.totalFiles > 0 
-        ? Math.round((session.processedFiles / session.totalFiles) * 100) 
+      progress: session.totalFiles > 0
+        ? Math.round((session.processedFiles / session.totalFiles) * 100)
         : 0,
       status: session.status,
       totalFindings,
